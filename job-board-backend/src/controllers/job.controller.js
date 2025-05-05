@@ -172,7 +172,7 @@ exports.deleteJob = async (req, res) => {
       });
     }
 
-    await job.remove();
+    await job.deleteOne();
 
     res.status(200).json({
       success: true,
