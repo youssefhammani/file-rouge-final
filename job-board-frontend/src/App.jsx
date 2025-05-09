@@ -1,100 +1,115 @@
-// src/App.js
-import React from 'react';
+// src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './hooks/useAuth';
 
-// Components
-import Navbar from './components/layout/Navbar.jsx';
-import Footer from './components/layout/Footer.jsx';
-import PrivateRoute from './components/routing/PrivateRoute.jsx';
-import CompanyRoute from './components/routing/CompanyRoute.jsx';
-import CandidateRoute from './components/routing/CandidateRoute.jsx';
+// Import pages
+import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import JobsPage from './pages/JobsPage';
+import JobDetailPage from './pages/JobDetailPage';
+import ProfilePage from './pages/ProfilePage';
+import PostJobPage from './pages/PostJobPage';
+import EditJobPage from './pages/EditJobPage';
+import SavedJobsPage from './pages/SavedJobsPage';
+import ApplicationsPage from './pages/ApplicationsPage';
+import CompanyJobsPage from './pages/CompanyJobsPage';
+import AboutPage from './pages/AboutPage';
 
-// Pages
-import HomePage from './pages/HomePage.jsx';
-import LoginPage from './pages/LoginPage.jsx';
-import RegisterPage from './pages/RegisterPage.jsx';
-import JobsPage from './pages/JobsPage.jsx';
-import JobDetailsPage from './pages/JobDetailsPage.jsx';
-import ProfilePage from './pages/ProfilePage.jsx';
-import SavedJobsPage from './pages/SavedJobsPage.jsx';
-import ApplicationsPage from './pages/ApplicationsPage.jsx';
-import CompanyDashboardPage from './pages/CompanyDashboardPage.jsx';
-import PostJobPage from './pages/PostJobPage.jsx';
-import EditJobPage from './pages/EditJobPage.jsx';
-import JobApplicationsPage from './pages/JobApplicationsPage.jsx';
-import NotFoundPage from './pages/NotFoundPage.jsx';
+// Protected Route component
+const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const { isAuthenticated, user } = useAuth();
 
-// Context
-import { AuthProvider } from './context/auth/AuthContext.jsx';
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user?.role)) {
+    return <Navigate to="/" />;
+  }
+
+  return children;
+};
+
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/jobs" element={<JobsPage />} />
+      <Route path="/jobs/:id" element={<JobDetailPage />} />
+      <Route path="/about" element={<AboutPage />} />
+
+      {/* Protected routes */}
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/post-job"
+        element={
+          <ProtectedRoute allowedRoles={['company']}>
+            <PostJobPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/edit-job/:id"
+        element={
+          <ProtectedRoute allowedRoles={['company']}>
+            <EditJobPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/my-jobs"
+        element={
+          <ProtectedRoute allowedRoles={['company']}>
+            <CompanyJobsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/saved-jobs"
+        element={
+          <ProtectedRoute allowedRoles={['candidate']}>
+            <SavedJobsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/applications"
+        element={
+          <ProtectedRoute>
+            <ApplicationsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 404 route */}
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
+  );
+};
 
 const App = () => {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="flex flex-col miggn-h-screen">
-          <Navbar />
-          <main className="flex-grow">
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<HomePage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route path="/jobs" element={<JobsPage />} />
-              <Route path="/jobs/:id" element={<JobDetailsPage />} />
-
-              {/* Protected Routes */}
-              <Route path="/profile" element={
-                <PrivateRoute>
-                  <ProfilePage />
-                </PrivateRoute>
-              } />
-
-              {/* Candidate Only Routes */}
-              <Route path="/saved-jobs" element={
-                <CandidateRoute>
-                  <SavedJobsPage />
-                </CandidateRoute>
-              } />
-              <Route path="/my-applications" element={
-                <CandidateRoute>
-                  <ApplicationsPage />
-                </CandidateRoute>
-              } />
-
-              {/* Company Only Routes */}
-              <Route path="/company/dashboard" element={
-                <CompanyRoute>
-                  <CompanyDashboardPage />
-                </CompanyRoute>
-              } />
-              <Route path="/company/jobs/post" element={
-                <CompanyRoute>
-                  <PostJobPage />
-                </CompanyRoute>
-              } />
-              <Route path="/company/jobs/edit/:id" element={
-                <CompanyRoute>
-                  <EditJobPage />
-                </CompanyRoute>
-              } />
-              <Route path="/company/jobs/:id/applications" element={
-                <CompanyRoute>
-                  <JobApplicationsPage />
-                </CompanyRoute>
-              } />
-
-              {/* Not Found Route */}
-              <Route path="/404" element={<NotFoundPage />} />
-              <Route path="*" element={<Navigate to="/404" replace />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-        <ToastContainer position="bottom-right" />
-      </Router>
-    </AuthProvider>
+    <Router>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </Router>
   );
 };
 

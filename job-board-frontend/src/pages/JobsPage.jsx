@@ -1,143 +1,118 @@
-// src/pages/JobsPage.js
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+// src/pages/JobsPage.jsx
+import { useState, useEffect } from 'react';
+import Layout from '../components/layout/Layout';
 import JobList from '../components/jobs/JobList';
-import JobFilter from '../components/jobs/JobFilter';
-import Spinner from '../components/layout/Spinner';
-import { toast } from 'react-toastify';
 
 const JobsPage = () => {
-    const location = useLocation();
-    const navigate = useNavigate();
-
-    // Get query params from URL
-    const queryParams = new URLSearchParams(location.search);
-
-    const [jobs, setJobs] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [pagination, setPagination] = useState({
-        currentPage: parseInt(queryParams.get('page')) || 1,
-        totalPages: 1,
-        totalJobs: 0
-    });
-
     const [filters, setFilters] = useState({
-        search: queryParams.get('search') || '',
-        location: queryParams.get('location') || '',
-        jobType: queryParams.get('jobType') || '',
-        skills: queryParams.get('skills') || '',
-        sort: queryParams.get('sort') || 'newest'
+        search: '',
+        location: '',
+        jobType: '',
+        skills: '',
     });
 
-    useEffect(() => {
-        fetchJobs();
-    }, [location.search]);
-
-    const fetchJobs = async () => {
-        try {
-            setLoading(true);
-
-            // Build query string from URL params
-            const params = new URLSearchParams(location.search);
-
-            const res = await axios.get(`/api/jobs?${params}`);
-
-            setJobs(res.data.data);
-            setPagination({
-                currentPage: res.data.page,
-                totalPages: res.data.totalPages,
-                totalJobs: res.data.total
-            });
-        } catch (err) {
-            setError('Error fetching jobs');
-            toast.error('Failed to load jobs');
-        } finally {
-            setLoading(false);
-        }
+    const handleFilterChange = (e) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({
+            ...prev,
+            [name]: value
+        }));
     };
 
-    const handleFilterChange = (newFilters) => {
-        setFilters({ ...filters, ...newFilters });
-    };
-
-    const handleSearch = (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
-
-        // Build query params
-        const params = new URLSearchParams();
-
-        // Only add non-empty filters to the URL
-        Object.entries(filters).forEach(([key, value]) => {
-            if (value) {
-                params.set(key, value);
-            }
-        });
-
-        // Reset to page 1 when filtering
-        params.set('page', '1');
-
-        // Update URL and trigger re-fetch
-        navigate(`/jobs?${params.toString()}`);
-    };
-
-    const handlePageChange = (page) => {
-        const params = new URLSearchParams(location.search);
-        params.set('page', page);
-        navigate(`/jobs?${params.toString()}`);
     };
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <h1 className="text-2xl font-bold mb-6">Browse Jobs</h1>
+        <Layout>
+            <div className="container mx-auto py-8 px-4">
+                <h1 className="text-3xl font-bold mb-8">Browse Jobs</h1>
 
-            <JobFilter
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                onSearch={handleSearch}
-            />
+                {/* Filters */}
+                <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+                    <form onSubmit={handleSubmit}>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label htmlFor="search" className="block text-gray-700 font-medium mb-2">
+                                    Search
+                                </label>
+                                <input
+                                    type="text"
+                                    id="search"
+                                    name="search"
+                                    value={filters.search}
+                                    onChange={handleFilterChange}
+                                    placeholder="Job title, keywords, or company"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
 
-            {loading ? (
-                <Spinner />
-            ) : (
-                <>
-                    <div className="mb-4 flex justify-between items-center">
-                        <div className="text-gray-600">
-                            Showing {jobs.length} of {pagination.totalJobs} jobs
+                            <div>
+                                <label htmlFor="location" className="block text-gray-700 font-medium mb-2">
+                                    Location
+                                </label>
+                                <input
+                                    type="text"
+                                    id="location"
+                                    name="location"
+                                    value={filters.location}
+                                    onChange={handleFilterChange}
+                                    placeholder="City, state, or remote"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label htmlFor="jobType" className="block text-gray-700 font-medium mb-2">
+                                    Job Type
+                                </label>
+                                <select
+                                    id="jobType"
+                                    name="jobType"
+                                    value={filters.jobType}
+                                    onChange={handleFilterChange}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    <option value="">All Types</option>
+                                    <option value="full-time">Full-time</option>
+                                    <option value="part-time">Part-time</option>
+                                    <option value="contract">Contract</option>
+                                    <option value="internship">Internship</option>
+                                    <option value="remote">Remote</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label htmlFor="skills" className="block text-gray-700 font-medium mb-2">
+                                    Skills
+                                </label>
+                                <input
+                                    type="text"
+                                    id="skills"
+                                    name="skills"
+                                    value={filters.skills}
+                                    onChange={handleFilterChange}
+                                    placeholder="e.g. JavaScript, React, Node.js"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
                         </div>
 
-                        <div>
-                            <select
-                                value={filters.sort}
-                                onChange={(e) => {
-                                    const newFilters = { ...filters, sort: e.target.value };
-                                    handleFilterChange(newFilters);
-
-                                    // Update URL immediately for sort change
-                                    const params = new URLSearchParams(location.search);
-                                    params.set('sort', e.target.value);
-                                    navigate(`/jobs?${params.toString()}`);
-                                }}
-                                className="border border-gray-300 rounded p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        <div className="mt-4 flex justify-end">
+                            <button
+                                type="submit"
+                                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
                             >
-                                <option value="newest">Newest</option>
-                                <option value="oldest">Oldest</option>
-                                <option value="salary_high">Highest Salary</option>
-                                <option value="salary_low">Lowest Salary</option>
-                            </select>
+                                Apply Filters
+                            </button>
                         </div>
-                    </div>
+                    </form>
+                </div>
 
-                    <JobList
-                        jobs={jobs}
-                        pagination={pagination}
-                        onPageChange={handlePageChange}
-                        error={error}
-                    />
-                </>
-            )}
-        </div>
+                {/* Job listings */}
+                <JobList filters={filters} />
+            </div>
+        </Layout>
     );
 };
 

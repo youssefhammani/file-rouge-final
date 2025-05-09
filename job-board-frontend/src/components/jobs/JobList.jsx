@@ -1,113 +1,154 @@
-// src/components/jobs/JobList.js
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import JobItem from './JobItem.jsx';
-import JobFilter from './JobFilter.jsx';
-import Spinner from '../layout/Spinner.jsx';
-import Pagination from '../layout/Pagination.jsx';
+// src/components/jobs/JobList.jsx
+import { useState, useEffect } from 'react';
+import JobCard from './JobCard';
+import { useAuth } from '../../hooks/useAuth';
+import { getAllJobs, getSavedJobs } from '../../services/jobService';
 
-const JobList = () => {
+const JobList = ({ filters = {}, limit }) => {
     const [jobs, setJobs] = useState([]);
+    const [savedJobIds, setSavedJobIds] = useState(new Set());
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [filters, setFilters] = useState({
-        search: '',
-        location: '',
-        jobType: '',
-        skills: '',
-    });
+    const [error, setError] = useState('');
     const [pagination, setPagination] = useState({
         currentPage: 1,
         totalPages: 1,
-        total: 0,
     });
 
-    useEffect(() => {
-        fetchJobs();
-    }, [filters.location, filters.jobType, filters.skills, pagination.currentPage]);
+    const { user, isAuthenticated } = useAuth();
 
-    const fetchJobs = async () => {
+    const fetchJobs = async (page = 1) => {
         setLoading(true);
         try {
-            const queryParams = new URLSearchParams({
-                page: pagination.currentPage,
-                limit: 10,
-            });
+            const params = {
+                ...filters,
+                page,
+                limit: limit || 10,
+            };
 
-            if (filters.search) queryParams.append('search', filters.search);
-            if (filters.location) queryParams.append('location', filters.location);
-            if (filters.jobType) queryParams.append('jobType', filters.jobType);
-            if (filters.skills) queryParams.append('skills', filters.skills);
-
-            const res = await axios.get(`/api/jobs?${queryParams}`);
-            setJobs(res.data.data);
+            const response = await getAllJobs(params);
+            setJobs(response.data);
             setPagination({
-                currentPage: res.data.pagination.currentPage,
-                totalPages: res.data.pagination.totalPages,
-                total: res.data.total,
+                currentPage: response.pagination.currentPage,
+                totalPages: response.pagination.totalPages,
             });
-        } catch (err) {
-            setError('Error fetching jobs. Please try again.');
+        } catch (error) {
+            console.error('Error fetching jobs:', error);
+            setError('Failed to load jobs. Please try again later.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleFilterChange = (newFilters) => {
-        setFilters({ ...filters, ...newFilters });
-        setPagination({ ...pagination, currentPage: 1 });
+    const fetchSavedJobs = async () => {
+        if (isAuthenticated && user.role === 'candidate') {
+            try {
+                const response = await getSavedJobs();
+                const savedIds = new Set(response.data.map(job => job._id));
+                setSavedJobIds(savedIds);
+            } catch (error) {
+                console.error('Error fetching saved jobs:', error);
+            }
+        }
     };
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        setPagination({ ...pagination, currentPage: 1 });
+    useEffect(() => {
         fetchJobs();
+        fetchSavedJobs();
+    }, [isAuthenticated, user, filters]);
+
+    const handlePageChange = (newPage) => {
+        fetchJobs(newPage);
     };
 
-    const handlePageChange = (page) => {
-        setPagination({ ...pagination, currentPage: page });
+    const handleSaveToggle = (jobId, isSaved) => {
+        setSavedJobIds(prev => {
+            const newSet = new Set(prev);
+            if (isSaved) {
+                newSet.add(jobId);
+            } else {
+                newSet.delete(jobId);
+            }
+            return newSet;
+        });
     };
 
-    if (loading) return <Spinner />;
+    if (loading && jobs.length === 0) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                {error}
+            </div>
+        );
+    }
+
+    if (jobs.length === 0) {
+        return (
+            <div className="text-center py-8">
+                <h3 className="text-lg font-medium text-gray-700 mb-2">No jobs found</h3>
+                <p className="text-gray-500">Try adjusting your search filters</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <JobFilter
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                onSearch={handleSearch}
-            />
-
-            <div className="mt-4 mb-6">
-                <h2 className="text-xl font-semibold">
-                    {pagination.total} Jobs Found
-                </h2>
+        <div>
+            <div className="space-y-4">
+                {jobs.map((job) => (
+                    <JobCard
+                        key={job._id}
+                        job={job}
+                        isSaved={savedJobIds.has(job._id)}
+                        onSaveToggle={handleSaveToggle}
+                    />
+                ))}
             </div>
 
-            {error && (
-                <div className="bg-red-100 text-red-700 p-4 rounded mb-4">
-                    {error}
-                </div>
-            )}
-
-            {jobs.length === 0 ? (
-                <div className="text-center py-8">
-                    <p className="text-gray-500 text-lg">No jobs found matching your criteria.</p>
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {jobs.map((job) => (
-                        <JobItem key={job._id} job={job} />
-                    ))}
-                </div>
-            )}
-
             {pagination.totalPages > 1 && (
-                <Pagination
-                    currentPage={pagination.currentPage}
-                    totalPages={pagination.totalPages}
-                    onPageChange={handlePageChange}
-                />
+                <div className="flex justify-center mt-8">
+                    <div className="flex space-x-1">
+                        <button
+                            onClick={() => handlePageChange(pagination.currentPage - 1)}
+                            disabled={pagination.currentPage === 1}
+                            className={`px-4 py-2 rounded ${pagination.currentPage === 1
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                        >
+                            Previous
+                        </button>
+
+                        {[...Array(pagination.totalPages).keys()].map((page) => (
+                            <button
+                                key={page + 1}
+                                onClick={() => handlePageChange(page + 1)}
+                                className={`px-4 py-2 rounded ${pagination.currentPage === page + 1
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                            >
+                                {page + 1}
+                            </button>
+                        ))}
+
+                        <button
+                            onClick={() => handlePageChange(pagination.currentPage + 1)}
+                            disabled={pagination.currentPage === pagination.totalPages}
+                            className={`px-4 py-2 rounded ${pagination.currentPage === pagination.totalPages
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
             )}
         </div>
     );
