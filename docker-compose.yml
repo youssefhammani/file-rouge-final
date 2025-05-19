@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # Backend service
+  backend:
+    build:
+      context: ./job-board-backend
+      dockerfile: Dockerfile
+    container_name: job-board-backend
+    command: npm run dev
+    volumes:
+      - ./job-board-backend/:/app
+    ports:
+      - "5000:5000"
+    env_file: ./job-board-backend/.env
+    environment:
+      - NODE_ENV=development
+    networks:
+      - app-network
+
+  # Frontend service
+  frontend:
+    build:
+      context: ./job-board-frontend
+      dockerfile: Dockerfile
+    container_name: job-board-frontend
+    command: npm run dev
+    volumes:
+      - ./job-board-frontend/:/src/main
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+    networks:
+      - app-network
+
+# Volumes
+volumes:
+  data_volume:
+
+# Networks
+networks:
+  app-network:

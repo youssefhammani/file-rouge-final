@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { getJobById, saveJob, unsaveJob, deleteJob } from '../../services/jobService';
 import ApplicationForm from '../applications/ApplicationForm';
 
+
 const JobDetails = () => {
     const { id } = useParams();
     const navigate = useNavigate();
